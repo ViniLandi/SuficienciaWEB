@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suficiencia</title>
+    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<script>
+
+    var requestURL = 'http://dummy.restapiexample.com/api/v1/';
+
+    var requestGet = new XMLHttpRequest();
+    var requestPost = new XMLHttpRequest();
+    var requestPut = new XMLHttpRequest();
+    var requestDelete = new XMLHttpRequest();
+
+    var data = [];
+    var carregando;
+    var salvarBtn;
+    var excluirBtn;
+
+    $(document).ready(function () {
+        carregando = document.getElementById("carregando");
+        salvarBtn = document.getElementById("salvar");
+        excluirBtn = document.getElementById("excluir");
+        get();
+    });
+
+    function get() {
+        carregando.style = "display: table-cell;"
+        if (ls() != 0) {
+            data = [];
+            for (let i = 0; i < ls(); i++) {
+                data.push(JSON.parse(localStorage.getItem(i)));
+            }
+            populaTab();
+            return;
+        }
+        requestGet.open('GET', requestURL + 'employees');
+        requestGet.responseType = 'json';
+        requestGet.send();
+    }
+
+    function post(param) {
+        requestPost.open('POST', requestURL + 'create');
+        requestPost.responseType = 'json';
+        requestPost.send(param);
+        requestPost.onload = function () {
+            if (requestPost.status != 200) {
+                post(param);
+                return;
+            }
+            get();
+            cancelar();
+        }
+    }
+
+    function put(param) {
+        requestPut.open('PUT', requestURL + 'update/' + param.id);
+        requestPut.responseType = 'json';
+        requestPut.send(param);
+        requestPut.onload = function () {
+            if (requestPut.status != 200) {
+                put(param);
+                return;
+            }
+            get();
+            cancelar();
+        }
+    }
+
+    function delet(id) {
+        requestDelete.open('DELETE', requestURL + 'delete/' + param.id);
+        requestDelete.responseType = 'json';
+        requestDelete.send();
+    }
+
+    function populaTab() {
+        var tabela = document.getElementById("tabela");
+        tabela.innerHTML = '';
+
+        data.forEach(e => {
+
+            var dados = [e.id, e.employee_name, e.employee_salary, e.employee_age];
+            var cells = [];
+
+            var row = document.createElement("tr");
+            row.classList.add("mdc-data-table__row");
+            row.id = e.id;
+            row.onclick = function () { obterParametros(row.id) };
+
+            for (let i = 0; i < 4; i++) {
+                cells[i] = document.createElement("td");
+                cells[i].classList.add("mdc-data-table__cell");
+                cells[i].appendChild(document.createTextNode(dados[i]));
+                row.appendChild(cells[i]);
+            }
+
+            $('#tabela').append(row);
+        });
+
+        carregando.style = "display: none;"
+    }
+
+    requestGet.onload = function () {
+        if (requestGet.status != 200) {
+            get();
+            return;
+        }
+
+        var db = requestGet.response.data;
+
+        for (let i = 0; i < db.length; i++) {
+            localStorage.setItem(i, JSON.stringify(db[i]));
+            data.push(JSON.parse(localStorage.getItem(i)));
+        }
+
+        populaTab();
+    };
+
+    function ls() {
+        var i = 0;
+        var dado = localStorage.getItem(i);
+        while (dado != null) {
+            i++;
+            dado = localStorage.getItem(i);
+        }
+        return i;
+    }
+
+    function obterParametros(id) {
+        data.forEach(e => {
+            if (e.id == id) {
+                $("#Id").val(e.id);
+                $("#Nome").val(e.employee_name);
+                $("#Salario").val(e.employee_salary);
+                $("#Idade").val(e.employee_age);
+            }
+        });
+        excluirBtn.disabled = false;
+    }
+    
+    function isEmpty(str) {
+        return (!str || 0 === str.length);
+    }
+
+    function salvar() {
+        var e = {};
+        e.id = $("#Id").val();
+        e.employee_name = $("#Nome").val();
+        e.employee_salary = $("#Salario").val();
+        e.employee_age = $("#Idade").val();
+
+        if (isEmpty(e.employee_name) || isEmpty(e.employee_salary) || isEmpty(e.employee_age)) {
+            alert("Registro inválido para cadastro!");
+            return;
+        }
+
+        if (e.id != '') {
+            for (let i = 0; i < ls(); i++) {
+                if (JSON.parse(localStorage.getItem(i)).id == e.id) {
+                    localStorage.setItem(i, JSON.stringify(e));
+                    break;
+                }
+            }
+        } else {
+            e.id = 0;
+            data.forEach(elem => {
+                if (elem.id > e.id) {
+                    e.id = elem.id;
+                }
+            });
+            e.id++;
+            localStorage.setItem(ls(), JSON.stringify(e));
+        }
+
+        cancelar();
+        get();
+    }
+
+    function excluirForm() {
+        if (confirm("Deseja realmente excluir?")) {
+            excluir($("#Id").val());
+        }
+    }
+
+    function excluirId() {
+        if (confirm("Deseja realmente excluir?")) {
+            if (excluir($("#excInput").val())) {
+                $("#excInput").val(null);
+            }
+        }
+    }
+
+    function excluir(id) {
+        var achou = false;
+        data.forEach(e => {
+            if (e.id == id) {
+                data.splice(data.indexOf(e), 1);
+                achou = true;
+            }
+        });
+        if (!achou) {
+            alert("Registro não encontrado ou inválido!");
+            return false;
+        }
+
+        localStorage.clear();
+
+        for (let i = 0; i < data.length; i++) {
+            localStorage.setItem(i, JSON.stringify(data[i]));
+        }
+
+        cancelar();
+        get();
+        return true;
+    }
+
+    function cancelar() {
+        $("#Id").val(null);
+        $("#Nome").val(null);
+        $("#Salario").val(null);
+        $("#Idade").val(null);
+        excluirBtn.disabled = true;
+    }
+</script>
+
+<body style="padding: 1rem;">
+    <div class="mdc-card" style="padding: 1rem;">
+        <input type="number" hidden name="Id" id="Id">
+        <span>Nome</span>
+        <br>
+        <label class="mdc-text-field mdc-text-field--filled">
+            <span class="mdc-text-field__ripple"></span>
+            <input class="mdc-text-field__input" type="text" aria-labelledby="my-label-id" name="Nome" id="Nome">
+        </label>
+        <span>Salário</span>
+        <br>
+        <label class="mdc-text-field mdc-text-field--filled">
+            <span class="mdc-text-field__ripple"></span>
+            <input class="mdc-text-field__input" type="number" min="0" aria-labelledby="my-label-id" name="Salario"
+                id="Salario">
+        </label>
+        <span>Idade</span>
+        <br>
+        <label class="mdc-text-field mdc-text-field--filled">
+            <span class="mdc-text-field__ripple"></span>
+            <input class="mdc-text-field__input" type="number" min="1" aria-labelledby="my-label-id" name="Idade"
+                id="Idade">
+        </label>
+        <div class="mdc-touch-target-wrapper">
+            <button class="mdc-button mdc-button--raised" style="background-color: green; margin-top: 1rem;"
+                type="button" onclick="salvar()" id="salvar">
+                <span class="mdc-button__label">Salvar</span>
+            </button>
+            <button class="mdc-button mdc-button--raised" style="background-color: red; margin-top: 1rem;" type="button"
+                onclick="excluirForm()" id="excluir" disabled>
+                <span class="mdc-button__label">Excluir</span>
+            </button>
+            <button class="mdc-button mdc-button--raised" style="margin-top: 1rem;" type="button" onclick="cancelar()">
+                <span class="mdc-button__label">Cancelar</span>
+            </button>
+        </div>
+    </div>
+    <br>
+    <hr>
+    <br>
+    <div class="mdc-card" style="padding: 1rem;">
+        <div>
+            <span>ID:</span>
+            <label class="mdc-text-field mdc-text-field--filled">
+                <span class="mdc-text-field__ripple"></span>
+                <input class="mdc-text-field__input" type="number" min="1" aria-labelledby="my-label-id" id="excInput">
+            </label>
+            <button class="mdc-button mdc-button--raised" style="background-color: red; margin: 1rem;" type="button">
+                <span class="mdc-button__label" onclick="excluirId()">Excluir</span>
+            </button>
+        </div>
+    </div>
+    <br>
+    <hr>
+    <br>
+    <div class="mdc-card">
+        <div class="mdc-data-table">
+            <div class="mdc-data-table__table-container">
+                <table class="mdc-data-table__table" aria-label="Dessert calories">
+                    <thead>
+                        <tr class="mdc-data-table__header-row">
+                            <th class="mdc-data-table__header-cell" role="columnheader" scope="col"><b>Id</b></th>
+                            <th class="mdc-data-table__header-cell" role="columnheader" scope="col"><b>Nome</b></th>
+                            <th class="mdc-data-table__header-cell" role="columnheader" scope="col"><b>Salário</b></th>
+                            <th class="mdc-data-table__header-cell" role="columnheader" scope="col"><b>Idade</b></th>
+                        </tr>
+                    </thead>
+                    <tbody class="mdc-data-table__content" id="tabela">
+                        <tr class="mdc-data-table__row">
+                            <td class="mdc-data-table__cell" scope="row" colspan="4" id="carregando">
+                                <h1 style="text-align: center;">Carregando...</h1>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
